@@ -61,6 +61,25 @@ gh secret set MINEAUTH_SERVICE_TOKEN -R morinoparty/moripa-mcp
 - `ticket_context` — ticket 対応用まとめ取り (ticket 詳細 + claims + balance + online)。足りない分は `gaps` で明示
 - `mineauth_request` — 汎用パススルー (`/api/` 始まりのみ)
 
+## ツール一覧: AdvanceRailway (v0.2)
+
+ベースパス `/api/v1/plugins/advancerailway/`。id 系は slug / UUID どちらも可。
+
+- `adv_route` — 2 駅間の最短経路 (`GET /route?from=&to=`)。`totalTime` (秒) + `legs[]` (`RAIL`/`WALK`、`fromName`/`toName`、`timeRequired`、`railwaySlug`、`line`)。徒歩区間は直線距離/4.317 の概算
+- `adv_stations` — 駅: `list` (`GET /stations`) / `get` / `railways` (接続路線) / `nearest` (`GET /nearest-station?world&x&z`) / `create` (POST) / `update` (PATCH) / `delete`
+- `adv_railways` — 路線: `list` / `get` / `create` (POST、実レールをサーバー側でトレース) / `update` (PATCH、`startPoint`+`endPoint`+`flags` 揃いでのみ引き直し) / `delete`
+- `adv_groups` — グループ (路線名・ナンバリング): `list` / `get` / `railways` / `stations` (並び+ナンバリング) / `set-stations` (PUT 一括置換) / `create` / `update` / `delete`
+- `adv_stats` — 件数サマリ (`GET /stats` → `{stations, railways, groups}`)
+
+## ツール一覧: mpm (v0.2)
+
+ベースパス `/api/v1/plugins/mpm/`。読み取りは `mpm.api.read`、書き込みは `mpm.api.write` (サービストークンは `callers` 許可で到達)。
+
+- `mpm_plugins` — 読み取り: `list` (`GET /plugins?filter=all|managed|unmanaged|outdated|locked`) / `get` / `versions` / `metadata` / `history` / `deps` (`?soft`) / `outdated` / `verify`
+- `mpm_status` — `doctor` (一括診断) / `search` (`GET /search?q=&limit=`) / `repositories` (ソース一覧)
+- `mpm_jobs` — 非同期ジョブ: `list` / `get` (RUNNING 中はポーリング) / `create` (`POST /jobs {type:'update_all', force?, skipIntegrity?}`)
+- `mpm_plugins_write` — 書き込み: `update-all` / `update` / `version` (`{version*, force?, skipIntegrity?}`) / `install` / `uninstall` (反映に再起動) / `lock` / `unlock`。一括更新はタイムアウト回避のため `mpm_jobs` の `create` 推奨
+
 ## MineAuth 側に足りないもの (addon 開発が必要)
 
 1. **座標→周辺 claims 検索**: `GET /api/v1/plugins/griefprevention/claims/nearby?world=&x=&y=&z=&radius=`

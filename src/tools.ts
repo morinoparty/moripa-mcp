@@ -1,6 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { defaultServerName, getServer, serverNames, type McServer } from "./config.js";
+import { registerAdvanceRailwayTools } from "./advancerailway.js";
+import { registerMpmTools } from "./mpm.js";
 
 const serverDesc =
   "Target Minecraft server (main / res / lobby ...). Omit for the default (main). Use list_servers if unsure.";
@@ -183,4 +185,7 @@ export function registerTools(mcp: McpServer, servers: Record<string, McServer>)
       return { content: [{ type: "text", text: text(data) }] };
     },
   );
+
+  registerAdvanceRailwayTools(mcp, servers);
+  registerMpmTools(mcp, servers);
 }
