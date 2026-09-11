@@ -3,14 +3,14 @@
   "name": "moripa-mcp",
   "main": "src/index.ts",
   "compatibility_date": "2025-10-17",
-  // Public endpoint. Wrangler registers this as a custom domain on deploy
-  // (the zone morino.party must be on the same Cloudflare account).
-  "routes": [
-    {
-      "pattern": "mcp.dev.morino.party",
-      "custom_domain": true
-    }
-  ],
+  // Custom domain disabled for now (token lacks zone perms for
+  // mcp.dev.morino.party). Re-enable when ready:
+  // "routes": [
+  //   {
+  //     "pattern": "mcp.dev.morino.party",
+  //     "custom_domain": true
+  //   }
+  // ],
   // Keep <name>.<subdomain>.workers.dev reachable too.
   "workers_dev": true,
   "vars": {
