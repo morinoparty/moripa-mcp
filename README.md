@@ -39,8 +39,8 @@ pnpm run check  # typecheck
 
 | secret | 用意する人 | 用途 |
 | --- | --- | --- |
+| `NIKOMARU_BITWARDEN_SECRET_MANAGER_ACCESS_TOKEN` | owner (org secret) | BSMからデプロイトークン取得 |
 | `OWNER_CLOUDFLARE_ACCOUNT_ID` | owner | wrangler の accountId |
-| `OWNER_CLOUDFLARE_API_TOKEN` | owner | wrangler の apiToken (Workers デプロイ権限) |
 | `BEARER_TOKEN` | 運営 | Hermes 認証用。Worker secret にも自動反映 |
 | `MINEAUTH_SERVICE_TOKEN` | 運営 | MineAuth 用。Worker secret にも自動反映 |
 

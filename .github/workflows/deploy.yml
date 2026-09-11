@@ -40,10 +40,25 @@ jobs:
       - name: Typecheck
         run: pnpm run check
 
-      - name: Deploy
-        uses: cloudflare/wrangler-action@v3
+      # Deploy token from BSM (morinoparty project, shared/CLOUDFLARE_API_TOKEN).
+      # Same pattern as MoriPath/kodama. Access token is an org secret.
+      - name: Get deploy token from Bitwarden Secrets Manager
+        uses: bitwarden/sm-action@v3.0.1
         with:
-          apiToken: ${{ secrets.OWNER_CLOUDFLARE_API_TOKEN }}
+          access_token: ${{ secrets.NIKOMARU_BITWARDEN_SECRET_MANAGER_ACCESS_TOKEN }}
+          secrets: |
+            d1a5c5d9-41cc-48f0-9035-b49901583491 > CLOUDFLARE_API_TOKEN
+
+      # sm-action only exposes to env, so re-export as a step output
+      # for wrangler-action's `with:` (value is masked by Actions).
+      - name: Expose deploy token as step output
+        id: bws-deploy
+        run: echo "cloudflare_api_token=$CLOUDFLARE_API_TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ steps.bws-deploy.outputs.cloudflare_api_token }}
           accountId: ${{ secrets.OWNER_CLOUDFLARE_ACCOUNT_ID }}
           packageManager: pnpm
           command: deploy
@@ -53,7 +68,7 @@ jobs:
       # (before `gh secret set`) doesn't blank anything.
       - name: Set Worker secrets
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.OWNER_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ steps.bws-deploy.outputs.cloudflare_api_token }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.OWNER_CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -n "${{ secrets.BEARER_TOKEN }}" ]; then
