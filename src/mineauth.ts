@@ -44,6 +44,18 @@ export const mineauth = {
     mineauthRequest(s, `/api/v1/plugins/tickets/tickets/${enc(player)}`),
   ticketDetail: (s: McServer, player: string, id: number) =>
     mineauthRequest(s, `/api/v1/plugins/tickets/tickets/${enc(player)}/${id}`),
+  ticketsAll: (
+    s: McServer,
+    opts: { status?: string; player?: string; cursor?: number; limit?: number } = {},
+  ) => {
+    const q = new URLSearchParams();
+    if (opts.status) q.set("status", opts.status);
+    if (opts.player) q.set("player", opts.player);
+    if (opts.cursor !== undefined) q.set("cursor", String(opts.cursor));
+    if (opts.limit !== undefined) q.set("limit", String(opts.limit));
+    const qs = q.toString();
+    return mineauthRequest(s, `/api/v1/plugins/tickets/tickets${qs ? `?${qs}` : ""}`);
+  },
   claims: (s: McServer, player: string) =>
     mineauthRequest(s, `/api/v1/plugins/griefprevention/claims/${enc(player)}`),
   balance: (s: McServer, player: string) =>

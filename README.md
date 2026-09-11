@@ -53,9 +53,10 @@ gh secret set MINEAUTH_SERVICE_TOKEN -R morinoparty/moripa-mcp
 
 - `list_servers` — 設定済み鯖名 + デフォルト
 - `list_plugins` — `GET /api/v1/commons/server/plugins` (導入 plugin 一覧)
-- `list_integrations` — `GET /api/v1/plugins/availableIntegrations`
+- `list_integrations` — `GET /api/v1/plugins/availableIntegrations` (新形式 `{integrations, plugins[]}`、旧鯖は `string[]` のまま)
 - `get_online_players` — `GET /api/v1/commons/server/players`
-- `get_tickets` / `get_ticket_detail` — PureTickets
+- `get_tickets` / `get_ticket_detail` — PureTickets (per-player)
+- `list_all_tickets` — PureTickets 全件一覧 (`GET /tickets?status&player&cursor&limit` → `{tickets, total, nextCursor, hasMore}`、MineAuth #412 以降が必要)
 - `get_claims` — GriefPrevention
 - `get_balance` — Vault
 - `ticket_context` — ticket 対応用まとめ取り (ticket 詳細 + claims + balance + online)。足りない分は `gaps` で明示

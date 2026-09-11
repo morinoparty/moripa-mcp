@@ -44,7 +44,9 @@ export function registerTools(mcp: McpServer, servers: Record<string, McServer>)
 
   mcp.tool(
     "list_integrations",
-    "List MineAuth addon integrations (namespaces like vault / griefprevention / tickets).",
+    "List MineAuth integrations + addon namespaces (GET /api/v1/plugins/availableIntegrations). " +
+      "New shape: {integrations: string[], plugins: [{namespace, plugin, basePath, endpoints: [{method, path, access, permission?, callers?}]}]}. " +
+      "Old servers may still return a plain string[].",
     serverArg,
     async ({ server }) => {
       const s = getServer(servers, server);
@@ -90,6 +92,30 @@ export function registerTools(mcp: McpServer, servers: Record<string, McServer>)
       const s = getServer(servers, server);
       const { mineauth } = await import("./mineauth.js");
       const data = await mineauth.ticketDetail(s, player, id);
+      return { content: [{ type: "text", text: text(data) }] };
+    },
+  );
+
+  mcp.tool(
+    "list_all_tickets",
+    "List ALL PureTickets tickets on a server, including offline players (staff triage). " +
+      "MineAuth GET /api/v1/plugins/tickets/tickets?status&player&cursor&limit. " +
+      "status: comma-separated OPEN,CLAIMED,CLOSED (case-insensitive, omit = all). " +
+      "player: UUID or locally-cached player name (404 if unknown; use UUID for never-joined). " +
+      "cursor: exclusive ticket-ID cursor (pass nextCursor). limit: default 50, max 200. " +
+      "Returns {tickets: [{id, player, status, message, claimer}], total, nextCursor, hasMore}. " +
+      "Requires the MineAuth build with PR #412; older servers return 404.",
+    {
+      ...serverArg,
+      status: z.string().optional().describe("e.g. OPEN or open,claimed (omit = all)"),
+      player: z.string().optional().describe("UUID or player name filter (omit = everyone)"),
+      cursor: z.number().optional().describe("Exclusive ticket-ID cursor from previous nextCursor"),
+      limit: z.number().optional().describe("Page size, default 50, max 200"),
+    },
+    async ({ server, status, player, cursor, limit }) => {
+      const s = getServer(servers, server);
+      const { mineauth } = await import("./mineauth.js");
+      const data = await mineauth.ticketsAll(s, { status, player, cursor, limit });
       return { content: [{ type: "text", text: text(data) }] };
     },
   );
