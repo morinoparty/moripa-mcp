@@ -1,61 +1,70 @@
 # moripa-mcp
 
-moripa マイクラ鯖のための MCP サーバー。裏側は各 MC サーバーの **MineAuth Service Token** を使って MineAuth HTTP API を叩く。Hono + MCP (Streamable HTTP, stateless)。
+moripa マイクラ鯖のための MCP サーバー。裏側は各 MC サーバーの MineAuth HTTP API を **単一の Service Token** で叩く。Hono + MCP (Streamable HTTP, stateless) on Cloudflare Workers。
 
-## マルチサーバーの分け方:ツール引数 `server` に一本化
+公開 URL: `https://mcp.dev.morino.party` (MCP は `POST /mcp`, Bearer 認証あり)
 
-結論: **MCP の接続先は1つ (`/mcp`)**。呼び出すツールごとに `server: "lobby" | "survival" | ...` を渡す。
+## サーバー解決: `SERVERS` + 単一トークン
 
-- ❌ パス分け (`/mcp/lobby`, `/mcp/survival`): Hermes/Claude 側の接続設定が鯖の数だけ増える。鯖追加のたびに設定変更。
-- ❌ ツール分け (`get_claims_lobby`, `get_claims_survival`): ツール数が 鯖数×機能数 で爆発する。
-- ✅ 引数分け (`get_claims({server: "survival", player})`): 接続1つ、ツール固定。鯖追加は環境変数の1行。
+- `SERVERS=main,res,lobby` → `<MINEAUTH_BASE_URL>/main`, `.../res`, `.../lobby`
+- `MINEAUTH_BASE_URL` の既定は `https://api.morino.party`。`main` がデフォルト鯖
+- `MINEAUTH_SERVICE_TOKEN` 1つで全部の鯖に通る (署名鍵が共通のため)。鯖ごとに token を分けない
+- 例外的に別 URL が要る鯖だけ `MC_SERVERS_JSON` で上書き可 (`{"local":{"baseUrl":"http://localhost:8080"}}`, token 省略時は共通トークン)
 
-## 設定
+ツール呼び出しは `server` 引数で分ける (省略時は main)。接続は `/mcp` ひとつ。
 
-| env | 説明 |
+## 認証 (2層)
+
+| 区間 | 方法 |
 | --- | --- |
-| `MC_SERVERS_JSON` | `{"lobby":{"baseUrl":"http://lobby:8080","token":"..."},"survival":{...}}` |
-| `MC_SERVER_URL` / `MC_SERVER_TOKEN` | 単鯖フォールバック (`default` として登録) |
-| `PORT` | default 3000 |
+| Hermes → MCP | `Authorization: Bearer <BEARER_TOKEN>` (Worker secret) |
+| MCP → MineAuth | `Authorization: Bearer <MINEAUTH_SERVICE_TOKEN>` (Worker secret) |
 
-トークンは各鯖で `/ma service create` → `/ma service token <name>` で発行 (有効期間1年、再発行で旧トークン失効)。K8s では Secret から注入すること。リポジトリにトークンを置かない。
+## 開発
 
-## 起動
+pnpm 使用。
 
 ```bash
-npm install
-npm run dev   # http://localhost:3000/health, MCP は POST /mcp
-npm run build && npm start
+pnpm install
+cp .env.example .dev.vars  # 中身を埋める (commit 禁止)
+pnpm run dev    # http://localhost:8787/health, MCP は POST /mcp
+pnpm run check  # typecheck
 ```
 
-Docker:
+## デプロイ
+
+`main` push で GitHub Actions → Workers に publish される。
+
+必要な repo/org secrets:
+
+| secret | 用意する人 | 用途 |
+| --- | --- | --- |
+| `OWNER_CLOUDFLARE_ACCOUNT_ID` | owner | wrangler の accountId |
+| `OWNER_CLOUDFLARE_API_TOKEN` | owner | wrangler の apiToken (Workers デプロイ権限) |
+| `BEARER_TOKEN` | 運営 | Hermes 認証用。Worker secret にも自動反映 |
+| `MINEAUTH_SERVICE_TOKEN` | 運営 | MineAuth 用。Worker secret にも自動反映 |
 
 ```bash
-docker build -t moripa-mcp .
-docker run -p 3000:3000 -e MC_SERVERS_JSON='{"lobby":{"baseUrl":"...","token":"..."}}' moripa-mcp
+gh secret set BEARER_TOKEN -R morinoparty/moripa-mcp
+gh secret set MINEAUTH_SERVICE_TOKEN -R morinoparty/moripa-mcp
 ```
 
 ## ツール一覧 (v0.1)
 
-- `list_servers` — 設定済み鯖名
-- `list_plugins` — `GET /api/v1/commons/server/plugins` (導入 plugin 一覧: 名前/version/authors — Service Token 必須)
-- `list_integrations` — `GET /api/v1/plugins/availableIntegrations` (vault / griefprevention / tickets ... の namespace 一覧)
+- `list_servers` — 設定済み鯖名 + デフォルト
+- `list_plugins` — `GET /api/v1/commons/server/plugins` (導入 plugin 一覧)
+- `list_integrations` — `GET /api/v1/plugins/availableIntegrations`
 - `get_online_players` — `GET /api/v1/commons/server/players`
-- `get_tickets` / `get_ticket_detail` — PureTickets (`/api/v1/plugins/tickets/...`)
-- `get_claims` — GriefPrevention (`/api/v1/plugins/griefprevention/claims/{player}`)
-- `get_balance` — Vault (`/api/v1/plugins/vault/balance/{player}`)
+- `get_tickets` / `get_ticket_detail` — PureTickets
+- `get_claims` — GriefPrevention
+- `get_balance` — Vault
 - `ticket_context` — ticket 対応用まとめ取り (ticket 詳細 + claims + balance + online)。足りない分は `gaps` で明示
-- `mineauth_request` — 汎用パススルー (`/api/` 始まりのみ)。新しい addon が増えても MCP を直さず叩ける
+- `mineauth_request` — 汎用パススルー (`/api/` 始まりのみ)
 
 ## MineAuth 側に足りないもの (addon 開発が必要)
 
-現状の MineAuth addon で **取れる**: ticket 一覧/詳細、player の claims、残高、online players、導入 plugin 一覧。
+1. **座標→周辺 claims 検索**: `GET /api/v1/plugins/griefprevention/claims/nearby?world=&x=&y=&z=&radius=`
+2. **最終ログイン / playtime**: `OfflinePlayer.getLastPlayed()` 系を返す小さな addon
+3. **町の情報**: 使う town プラグインを決めてから addon 化
 
-やりたい「ticket が切られたら周辺の土地保護 + 最終ログイン」には以下が足りない:
-
-1. **座標→周辺 claims 検索**: `GET /api/v1/plugins/griefprevention/claims/nearby?world=&x=&y=&z=&radius=` 的な新 endpoint。GriefPrevention の `DataStore.getClaims()` 全舐め + 矩形ヒット判定。`@Authenticated(callers=[USER, SERVICE])` で。
-2. **最終ログイン / playtime**: Bukkit `OfflinePlayer.getLastPlayed()` / `getFirstPlayed()` を返す小さな addon (`playerinfo` 的な namespace)。ticket_context の `gaps.lastLogin` を埋める。
-3. **町の情報**: 使っている town プラグイン (Towny? AsiaCraft 系?) に応じた新 addon。まず「どの town プラグインを使うか」を決めるのが先。決まれば 1 と同じ型で作れる。
-4. (任意) **ticket 位置の記録**: PureTickets の ticket message に座標が含まれているなら正規表現で抜けるが、確実にやるなら ticket 作成時に座標を別保存する addon 側の拡張。
-
-いずれも既存 addon (`addons/griefprevention`, `addons/pure-tickets`) の Handler パターンのコピーで作れる。`mineauth_request` があるので、addon が生えたら MCP 側の改修なしで叩ける。
+`mineauth_request` があるので addon が生えたら MCP 改修なしで叩ける。

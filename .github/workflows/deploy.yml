@@ -1,0 +1,65 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Workers
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        name: Install pnpm
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run check
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.OWNER_CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.OWNER_CLOUDFLARE_ACCOUNT_ID }}
+          packageManager: pnpm
+          command: deploy
+
+      # Worker secrets (BEARER_TOKEN / MINEAUTH_SERVICE_TOKEN).
+      # Set only when the repo secret exists, so the first deploy
+      # (before `gh secret set`) doesn't blank anything.
+      - name: Set Worker secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.OWNER_CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.OWNER_CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "${{ secrets.BEARER_TOKEN }}" ]; then
+            printf '%s' '${{ secrets.BEARER_TOKEN }}' | pnpm exec wrangler secret put BEARER_TOKEN
+          else
+            echo "BEARER_TOKEN secret missing, skipping"
+          fi
+          if [ -n "${{ secrets.MINEAUTH_SERVICE_TOKEN }}" ]; then
+            printf '%s' '${{ secrets.MINEAUTH_SERVICE_TOKEN }}' | pnpm exec wrangler secret put MINEAUTH_SERVICE_TOKEN
+          else
+            echo "MINEAUTH_SERVICE_TOKEN secret missing, skipping"
+          fi

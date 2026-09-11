@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "moripa-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-10-17",
+  // Public endpoint. Wrangler registers this as a custom domain on deploy
+  // (the zone morino.party must be on the same Cloudflare account).
+  "routes": [
+    {
+      "pattern": "mcp.dev.morino.party",
+      "custom_domain": true
+    }
+  ],
+  // Keep <name>.<subdomain>.workers.dev reachable too.
+  "workers_dev": true,
+  "vars": {
+    // Server keys. Resolved as <MINEAUTH_BASE_URL>/<name>.
+    // e.g. main -> https://api.morino.party/main
+    "SERVERS": "main,res,lobby",
+    "MINEAUTH_BASE_URL": "https://api.morino.party"
+  }
+  // Secrets (set via `wrangler secret put`, see .github/workflows/deploy.yml):
+  //   BEARER_TOKEN          - Hermes -> this MCP (Authorization: Bearer ...)
+  //   MINEAUTH_SERVICE_TOKEN - this MCP -> MineAuth (single token, all servers)
+}
