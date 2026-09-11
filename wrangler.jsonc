@@ -5,12 +5,14 @@
   "compatibility_date": "2025-10-17",
   // Public endpoint. Wrangler registers this as a custom domain on deploy
   // (the zone morino.party must be on the same Cloudflare account).
-  "routes": [
-    {
-      "pattern": "mcp.dev.morino.party",
-      "custom_domain": true
-    }
-  ],
+  // Custom domain temporarily disabled for debugging (auth error 10000).
+  // Re-enable after deploy works:
+  // "routes": [
+  //   {
+  //     "pattern": "mcp.dev.morino.party",
+  //     "custom_domain": true
+  //   }
+  // ],
   // Keep <name>.<subdomain>.workers.dev reachable too.
   "workers_dev": true,
   "vars": {
