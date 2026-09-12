@@ -3,15 +3,7 @@
   "name": "moripa-mcp",
   "main": "src/index.ts",
   "compatibility_date": "2025-10-17",
-  // Custom domain disabled for now (token lacks zone perms for
-  // mcp.dev.morino.party). Re-enable when ready:
-  // "routes": [
-  //   {
-  //     "pattern": "mcp.dev.morino.party",
-  //     "custom_domain": true
-  //   }
-  // ],
-  // Keep <name>.<subdomain>.workers.dev reachable too.
+  // 公開は <name>.<subdomain>.workers.dev のみ。カスタムドメインは使わない
   "workers_dev": true,
   "vars": {
     // Server keys. Resolved as <MINEAUTH_BASE_URL>/<name>.

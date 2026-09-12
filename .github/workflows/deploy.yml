@@ -34,14 +34,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Show versions
-        run: node --version && pnpm --version && pnpm exec wrangler --version
-
       - name: Typecheck
         run: pnpm run check
 
-      # Deploy token from BSM (morinoparty project, shared/CLOUDFLARE_API_TOKEN).
-      # Same pattern as MoriPath/kodama. Access token is an org secret.
+      # デプロイトークンは BSM morinoparty プロジェクトの shared/CLOUDFLARE_API_TOKEN から取得
+      # (MoriPath / kodama と同じパターン。access token は org secret)
       - name: Get deploy token from Bitwarden Secrets Manager
         uses: bitwarden/sm-action@v3.0.1
         with:
@@ -49,56 +46,29 @@ jobs:
           secrets: |
             d1a5c5d9-41cc-48f0-9035-b49901583491 > CLOUDFLARE_API_TOKEN
 
-      # sm-action only exposes to env, so re-export as a step output
-      # for wrangler-action's `with:` (value is masked by Actions).
-      - name: Expose deploy token as step output
-        id: bws-deploy
-        run: echo "cloudflare_api_token=$CLOUDFLARE_API_TOKEN" >> "$GITHUB_OUTPUT"
-
-      # The token knows its own account. Prefer that over the secret,
-      # so a stale/wrong OWNER_CLOUDFLARE_ACCOUNT_ID can't 10000 us.
-      - name: Resolve Cloudflare account ID
-        id: cf-account
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ steps.bws-deploy.outputs.cloudflare_api_token }}
-        run: |
-          IDS=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            https://api.cloudflare.com/client/v4/accounts | jq -r '.result[]?.id' | grep . || true)
-          COUNT=$(echo "$IDS" | grep -c . || true)
-          if [ "$COUNT" -eq 1 ]; then
-            echo "account_id=$IDS" >> "$GITHUB_OUTPUT"
-            echo "Using token's account: $IDS"
-          elif [ -n "${{ secrets.OWNER_CLOUDFLARE_ACCOUNT_ID }}" ]; then
-            echo "account_id=${{ secrets.OWNER_CLOUDFLARE_ACCOUNT_ID }}" >> "$GITHUB_OUTPUT"
-            echo "Token sees $COUNT accounts, falling back to OWNER_CLOUDFLARE_ACCOUNT_ID"
-          else
-            echo "Token sees $COUNT accounts and no OWNER_CLOUDFLARE_ACCOUNT_ID; cannot pick one" >&2
-            exit 1
-          fi
-
       - name: Deploy
         uses: cloudflare/wrangler-action@v4
         with:
-          apiToken: ${{ steps.bws-deploy.outputs.cloudflare_api_token }}
-          accountId: ${{ steps.cf-account.outputs.account_id }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.OWNER_CLOUDFLARE_ACCOUNT_ID }}
           packageManager: pnpm
           command: deploy
 
-      # Worker secrets (BEARER_TOKEN / MINEAUTH_SERVICE_TOKEN).
-      # Set only when the repo secret exists, so the first deploy
-      # (before `gh secret set`) doesn't blank anything.
+      # Worker secrets (BEARER_TOKEN / MINEAUTH_SERVICE_TOKEN)。
+      # repo secret がある時だけ設定する (初回デプロイで空にしないため)
       - name: Set Worker secrets
         env:
-          CLOUDFLARE_API_TOKEN: ${{ steps.bws-deploy.outputs.cloudflare_api_token }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ steps.cf-account.outputs.account_id }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.OWNER_CLOUDFLARE_ACCOUNT_ID }}
+          BEARER_TOKEN: ${{ secrets.BEARER_TOKEN }}
+          MINEAUTH_SERVICE_TOKEN: ${{ secrets.MINEAUTH_SERVICE_TOKEN }}
         run: |
-          if [ -n "${{ secrets.BEARER_TOKEN }}" ]; then
-            printf '%s' '${{ secrets.BEARER_TOKEN }}' | pnpm exec wrangler secret put BEARER_TOKEN
+          if [ -n "$BEARER_TOKEN" ]; then
+            printf '%s' "$BEARER_TOKEN" | pnpm exec wrangler secret put BEARER_TOKEN
           else
             echo "BEARER_TOKEN secret missing, skipping"
           fi
-          if [ -n "${{ secrets.MINEAUTH_SERVICE_TOKEN }}" ]; then
-            printf '%s' '${{ secrets.MINEAUTH_SERVICE_TOKEN }}' | pnpm exec wrangler secret put MINEAUTH_SERVICE_TOKEN
+          if [ -n "$MINEAUTH_SERVICE_TOKEN" ]; then
+            printf '%s' "$MINEAUTH_SERVICE_TOKEN" | pnpm exec wrangler secret put MINEAUTH_SERVICE_TOKEN
           else
             echo "MINEAUTH_SERVICE_TOKEN secret missing, skipping"
           fi

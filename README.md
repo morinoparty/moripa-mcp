@@ -2,7 +2,7 @@
 
 moripa マイクラ鯖のための MCP サーバー。裏側は各 MC サーバーの MineAuth HTTP API を **単一の Service Token** で叩く。Hono + MCP (Streamable HTTP, stateless) on Cloudflare Workers。
 
-公開 URL: `https://mcp.dev.morino.party` (MCP は `POST /mcp`, Bearer 認証あり)
+公開 URL: `https://moripa-mcp.nikomaru.workers.dev` (MCP は `POST /mcp`, Bearer 認証あり)。カスタムドメインは使っていない。
 
 ## サーバー解決: `SERVERS` + 単一トークン
 
@@ -33,23 +33,29 @@ pnpm run check  # typecheck
 
 ## デプロイ
 
-`main` push で GitHub Actions → Workers に publish される。
+`main` push で GitHub Actions → Workers に publish される (`.github/workflows/deploy.yml`)。
 
-必要な repo/org secrets:
+Cloudflare のデプロイトークンは repo secret ではなく **Bitwarden Secrets Manager** から取る。
+`bitwarden/sm-action` が BSM の `morinoparty / shared/CLOUDFLARE_API_TOKEN` を
+`CLOUDFLARE_API_TOKEN` として env に流し、`wrangler-action` がそれを使う。MoriPath / kodama と同じ形。
 
-| secret | 用意する人 | 用途 |
+必要な secrets:
+
+| secret | スコープ | 用途 |
 | --- | --- | --- |
-| `NIKOMARU_BITWARDEN_SECRET_MANAGER_ACCESS_TOKEN` | owner (org secret) | BSMからデプロイトークン取得 |
-| `OWNER_CLOUDFLARE_ACCOUNT_ID` | owner | wrangler の accountId |
-| `BEARER_TOKEN` | 運営 | Hermes 認証用。Worker secret にも自動反映 |
-| `MINEAUTH_SERVICE_TOKEN` | 運営 | MineAuth 用。Worker secret にも自動反映 |
+| `NIKOMARU_BITWARDEN_SECRET_MANAGER_ACCESS_TOKEN` | org | BSM からデプロイトークンを取得 |
+| `OWNER_CLOUDFLARE_ACCOUNT_ID` | org | wrangler の accountId |
+| `BEARER_TOKEN` | repo | Hermes 認証用。deploy 後に Worker secret へ反映 |
+| `MINEAUTH_SERVICE_TOKEN` | repo | MineAuth 用。deploy 後に Worker secret へ反映 |
 
 ```bash
 gh secret set BEARER_TOKEN -R morinoparty/moripa-mcp
 gh secret set MINEAUTH_SERVICE_TOKEN -R morinoparty/moripa-mcp
 ```
 
-## ツール一覧 (v0.1)
+## ツール一覧
+
+### コア
 
 - `list_servers` — 設定済み鯖名 + デフォルト
 - `list_plugins` — `GET /api/v1/commons/server/plugins` (導入 plugin 一覧)
@@ -62,7 +68,7 @@ gh secret set MINEAUTH_SERVICE_TOKEN -R morinoparty/moripa-mcp
 - `ticket_context` — ticket 対応用まとめ取り (ticket 詳細 + claims + balance + online)。足りない分は `gaps` で明示
 - `mineauth_request` — 汎用パススルー (`/api/` 始まりのみ)
 
-## ツール一覧: AdvanceRailway (v0.2)
+### AdvanceRailway
 
 ベースパス `/api/v1/plugins/advancerailway/`。id 系は slug / UUID どちらも可。
 
@@ -72,7 +78,7 @@ gh secret set MINEAUTH_SERVICE_TOKEN -R morinoparty/moripa-mcp
 - `adv_groups` — グループ (路線名・ナンバリング): `list` / `get` / `railways` / `stations` (並び+ナンバリング) / `set-stations` (PUT 一括置換) / `create` / `update` / `delete`
 - `adv_stats` — 件数サマリ (`GET /stats` → `{stations, railways, groups}`)
 
-## ツール一覧: mpm (v0.2)
+### mpm
 
 ベースパス `/api/v1/plugins/mpm/`。読み取りは `mpm.api.read`、書き込みは `mpm.api.write` (サービストークンは `callers` 許可で到達)。
 
