@@ -44,7 +44,7 @@ Cloudflare のデプロイトークンは repo secret ではなく **Bitwarden S
 | secret | スコープ | 用途 |
 | --- | --- | --- |
 | `NIKOMARU_BITWARDEN_SECRET_MANAGER_ACCESS_TOKEN` | org | BSM からデプロイトークンを取得 |
-| `CF_ACCOUNT_ID` | repo | wrangler の accountId (MoriPath と同じ名前。org の OWNER_CLOUDFLARE_ACCOUNT_ID は値が古いので使わない) |
+| `CF_ACCOUNT_ID` | repo | wrangler の accountId (MoriPath と同じ名前。org の OWNER_CLOUDFLARE_ACCOUNT_ID は BSM のデプロイトークンが見えるアカウントと別なので使わない) |
 | `BEARER_TOKEN` | repo | Hermes 認証用。deploy 後に Worker secret へ反映 |
 | `MINEAUTH_SERVICE_TOKEN` | repo | MineAuth 用。deploy 後に Worker secret へ反映 |
 
