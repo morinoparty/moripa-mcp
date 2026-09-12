@@ -50,7 +50,7 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.OWNER_CLOUDFLARE_ACCOUNT_ID }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
           packageManager: pnpm
           command: deploy
 
@@ -58,7 +58,7 @@ jobs:
       # repo secret がある時だけ設定する (初回デプロイで空にしないため)
       - name: Set Worker secrets
         env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.OWNER_CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           BEARER_TOKEN: ${{ secrets.BEARER_TOKEN }}
           MINEAUTH_SERVICE_TOKEN: ${{ secrets.MINEAUTH_SERVICE_TOKEN }}
         run: |
