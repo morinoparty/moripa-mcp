@@ -141,19 +141,24 @@ export function registerMpmTools(mcp: McpServer, servers: Record<string, McServe
       "update-all: POST /plugins/update?force= (slow: minutes for many plugins; prefer jobs create update_all). " +
       "update: POST /plugins/{name}/update?force= (returns parent + synced children; skipped=true means intentional hold, not failure). " +
       "version: POST /plugins/{name}/version {version*, force?, skipIntegrity?} (sync: plugins reject with 409). " +
+      "add: POST /plugins/{name}/add {version?} (register only, no download; follow with install). " +
       "install: POST /plugins/{name}/install?force=. uninstall: POST /plugins/{name}/uninstall (needs restart). " +
       "lock/unlock: POST /plugins/{name}/lock|unlock.",
     {
       ...serverArg,
-      action: z.enum(["update-all", "update", "version", "install", "uninstall", "lock", "unlock"]),
+      action: z.enum(["update-all", "update", "version", "install", "uninstall", "lock", "unlock", "add"]),
       name: z.string().optional().describe("Plugin name (all except update-all)"),
       force: z.boolean().optional().describe("update-all/update/install/version: force api-version mismatch"),
+      version: z
+        .string()
+        .optional()
+        .describe("add: version spec (latest | sync:Parent | tag:xxx | fixed X.Y.Z; default latest)"),
       body: z
         .record(z.unknown())
         .optional()
         .describe("version: {version*, force?, skipIntegrity?}"),
     },
-    async ({ server, action, name, force, body }) => {
+    async ({ server, action, name, force, version, body }) => {
       const s = getServer(servers, server);
       const fq = force ? "?force=true" : "";
       switch (action) {
@@ -171,6 +176,14 @@ export function registerMpmTools(mcp: McpServer, servers: Record<string, McServe
           const data = await req(s, `${BASE}/plugins/${enc(name)}/version`, {
             method: "POST",
             body,
+          });
+          return { content: [{ type: "text", text: text(data) }] };
+        }
+        case "add": {
+          if (!name) throw new Error("name is required");
+          const data = await req(s, `${BASE}/plugins/${enc(name)}/add`, {
+            method: "POST",
+            body: { version: version ?? "latest" },
           });
           return { content: [{ type: "text", text: text(data) }] };
         }
