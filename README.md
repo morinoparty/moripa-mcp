@@ -85,7 +85,7 @@ gh secret set MINEAUTH_SERVICE_TOKEN -R morinoparty/moripa-mcp
 - `mpm_plugins` — 読み取り: `list` (`GET /plugins?filter=all|managed|unmanaged|outdated|locked`) / `get` / `versions` / `metadata` / `history` / `deps` (`?soft`) / `outdated` / `verify`
 - `mpm_status` — `doctor` (一括診断) / `search` (`GET /search?q=&limit=`) / `repositories` (ソース一覧)
 - `mpm_jobs` — 非同期ジョブ: `list` / `get` (RUNNING 中はポーリング) / `create` (`POST /jobs {type:'update_all', force?, skipIntegrity?}`)
-- `mpm_plugins_write` — 書き込み: `update-all` / `update` / `version` (`{version*, force?, skipIntegrity?}`) / `install` / `uninstall` (反映に再起動) / `lock` / `unlock`。一括更新はタイムアウト回避のため `mpm_jobs` の `create` 推奨
+- `mpm_plugins_write` — 書き込み: `update-all` / `update` / `version` (`{version*, force?, skipIntegrity?}`) / `add` (`version` 指定: `latest`/`sync:親`/`tag:`/固定、登録のみ・配置は `install` を続けて呼ぶ) / `install` / `uninstall` (反映に再起動) / `lock` / `unlock`。一括更新はタイムアウト回避のため `mpm_jobs` の `create` 推奨
 
 ## MineAuth 側に足りないもの (addon 開発が必要)
 
